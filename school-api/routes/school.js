@@ -20,7 +20,7 @@ router.post('/addSchool', (req, res) => {
   });
 });
 
-app.get('/api/listSchools', async (req, res) => {
+router.get('/api/listSchools', async (req, res) => {
   const userLat = parseFloat(req.query.latitude);
   const userLon = parseFloat(req.query.longitude);
 
@@ -60,6 +60,6 @@ app.get('/api/listSchools', async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-  
+
 
 module.exports = router;
