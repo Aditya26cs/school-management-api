@@ -1,7 +1,8 @@
-const express = require('express');
+ const express = require('express');
 const router = express.Router();
 const db = require('../database');
 
+// POST /addSchool
 router.post('/addSchool', (req, res) => {
   const { name, address, latitude, longitude } = req.body;
 
@@ -19,46 +20,46 @@ router.post('/addSchool', (req, res) => {
   });
 });
 
-
-// Function to calculate distance between two geo points (Haversine formula)
-function getDistance(lat1, lon1, lat2, lon2) {
-  const toRad = val => (val * Math.PI) / 180;
-  const R = 6371; // Earth radius in KM
-
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-// GET /listSchools
-router.get('/listSchools', (req, res) => {
+app.get('/api/listSchools', async (req, res) => {
   const userLat = parseFloat(req.query.latitude);
   const userLon = parseFloat(req.query.longitude);
 
-  if (isNaN(userLat) || isNaN(userLon)) {
-    return res.status(400).json({ message: 'Invalid latitude or longitude.' });
+  if (!userLat || !userLon) {
+    return res.status(400).json({ message: "Latitude and longitude are required" });
   }
 
-  db.query('SELECT * FROM schools', (err, results) => {
-    if (err) {
-      console.error('Error fetching schools:', err);
-      return res.status(500).json({ error: 'Failed to fetch schools.' });
-    }
+  try {
+    const [schools] = await pool.query('SELECT * FROM schools');
 
-    const sorted = results.map(school => {
-      const distance = getDistance(userLat, userLon, school.latitude, school.longitude);
-      return { ...school, distance: distance.toFixed(2) };
-    }).sort((a, b) => a.distance - b.distance);
+    // Haversine formula to calculate distance between two coordinates
+    const toRad = (value) => (value * Math.PI) / 180;
 
-    res.json(sorted);
-  });
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+      const R = 6371; // Radius of earth in KM
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c; // Distance in KM
+    };
+
+    const sortedSchools = schools.map(school => ({
+      ...school,
+      distance: calculateDistance(userLat, userLon, school.latitude, school.longitude)
+    }))
+    .sort((a, b) => a.distance - b.distance);
+
+    res.json(sortedSchools);
+  } catch (err) {
+    console.error('Error listing schools:', err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
-
+  
 
 module.exports = router;
-  
