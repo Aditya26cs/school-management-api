@@ -1,4 +1,4 @@
- const express = require('express');
+const express = require('express');
 const router = express.Router();
 const db = require('../database');
 
@@ -20,22 +20,26 @@ router.post('/addSchool', (req, res) => {
   });
 });
 
-router.get('/api/listSchools', async (req, res) => {
+// GET /listSchools
+router.get('/listSchools', (req, res) => {
   const userLat = parseFloat(req.query.latitude);
   const userLon = parseFloat(req.query.longitude);
 
-  if (!userLat || !userLon) {
-    return res.status(400).json({ message: "Latitude and longitude are required" });
+  if (isNaN(userLat) || isNaN(userLon)) {
+    return res.status(400).json({ message: "Latitude and longitude are required and must be valid numbers." });
   }
 
-  try {
-    const schools = await query('SELECT * FROM schools');
+  db.query('SELECT * FROM schools', (err, results) => {
+    if (err) {
+      console.error('Error fetching schools:', err);
+      return res.status(500).json({ message: 'Server error while fetching schools' });
+    }
 
-    // Haversine formula
+    // Haversine formula to calculate distance
     const toRad = (value) => (value * Math.PI) / 180;
 
     const calculateDistance = (lat1, lon1, lat2, lon2) => {
-      const R = 6371; // Earth radius in KM
+      const R = 6371; // Earth radius in km
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
       const a =
@@ -46,16 +50,13 @@ router.get('/api/listSchools', async (req, res) => {
       return R * c;
     };
 
-    const sortedSchools = schools.map(school => ({
+    const sortedSchools = results.map((school) => ({
       ...school,
       distance: calculateDistance(userLat, userLon, school.latitude, school.longitude)
     })).sort((a, b) => a.distance - b.distance);
 
     res.json(sortedSchools);
-  } catch (err) {
-    console.error('Error listing schools:', err);
-    res.status(500).json({ message: "Server error" });
-  }
+  });
 });
 
 module.exports = router;
